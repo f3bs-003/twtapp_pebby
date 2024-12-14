@@ -2,7 +2,6 @@ const express = require('express');
 const bodyParser = require('body-parser');
 
 const userRoute = require('./routes/userRoute');
-const authRoutes = require('./routes/authRoutes');
 
 const app = express();
 app.use(bodyParser.json());
@@ -14,7 +13,6 @@ app.get('/', function(req, res){
 });
 
 app.use('/api/users', userRoute);
-app.use('/api/auth', authRoutes);
 
 const PORT = 5000;
 
