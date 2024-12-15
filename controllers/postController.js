@@ -4,8 +4,11 @@ const pool = require('../config/database');
 const createPost = async (req, res) => {
     const { user_id, image, caption } = req.body;
 
+    if (!user_id || !image || !caption) {
+        return res.status(400).json({ error: 'Missing required fields: user_id, image, or caption' });
+    }
+
     try {
-        // Insert the new post into the database
         const [result] = await pool.query(
             'INSERT INTO posts (user_id, image, caption) VALUES (?, ?, ?)',
             [user_id, image, caption]
@@ -22,7 +25,7 @@ const createPost = async (req, res) => {
 
 // Get all posts (optionally for a specific user)
 const getPosts = async (req, res) => {
-    const { user_id } = req.query; // Optional query parameter to filter posts by user
+    const { user_id, limit = 10, offset = 0 } = req.query;
 
     try {
         let query = 'SELECT posts.*, users.username, users.fullname FROM posts JOIN users ON posts.user_id = users.user_id';
@@ -33,7 +36,8 @@ const getPosts = async (req, res) => {
             params.push(user_id);
         }
 
-        query += ' ORDER BY posts.created_at DESC';
+        query += ' ORDER BY posts.created_at DESC LIMIT ? OFFSET ?';
+        params.push(limit, offset);
 
         const [rows] = await pool.query(query, params);
 
@@ -46,6 +50,10 @@ const getPosts = async (req, res) => {
 // Get a single post by ID
 const getPostById = async (req, res) => {
     const { post_id } = req.params;
+
+    if (isNaN(post_id)) {
+        return res.status(400).json({ error: 'Invalid post_id' });
+    }
 
     try {
         const [rows] = await pool.query(
@@ -66,18 +74,17 @@ const getPostById = async (req, res) => {
 // Delete a post by ID
 const deletePost = async (req, res) => {
     const { post_id } = req.params;
-    const { user_id } = req.body; // Ensure the user deleting the post owns it
+    const { user_id } = req.body;
 
     try {
-        // Check if the post exists and belongs to the user
-        const [rows] = await pool.query('SELECT * FROM posts WHERE post_id = ? AND user_id = ?', [post_id, user_id]);
+        const [result] = await pool.query(
+            'DELETE FROM posts WHERE post_id = ? AND user_id = ?',
+            [post_id, user_id]
+        );
 
-        if (rows.length === 0) {
+        if (result.affectedRows === 0) {
             return res.status(404).json({ error: 'Post not found or unauthorized' });
         }
-
-        // Delete the post
-        await pool.query('DELETE FROM posts WHERE post_id = ?', [post_id]);
 
         res.json({ message: 'Post deleted successfully' });
     } catch (err) {
